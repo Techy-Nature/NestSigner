@@ -66,24 +66,34 @@ The project already contains `.github/workflows/build.yml`.
 2. Open the repo's **Actions** tab. A build starts on every push, or press **Run workflow**.
 3. When it's green, the APK is published to the repo's **Releases** page as `NestSigner.apk`.
 
-## Signing a release build of NestSigner
+## Signing NestSigner's own builds
 
-The debug APK installs fine and is OK to share. For a proper release, sign NestSigner with a key made by NestSigner:
+Without signing secrets, GitHub builds a debug APK with a temporary key that changes every build, so each new version has to be uninstalled before installing. To sign builds with your own key instead, add these under **Settings → Secrets and variables → Actions → New repository secret**:
 
-1. Install the debug APK and make a keystore with it, for example `nestsigner-release.jks`.
-2. Copy that file into the project folder, next to `settings.gradle`.
-3. Create `keystore.properties` in the same folder:
+| Secret | Value |
+|---|---|
+| `KEYSTORE_BASE64` | Your keystore file as base64 text |
+| `KEYSTORE_PASSWORD` | The keystore password |
+| `KEY_ALIAS` | The key alias |
+| `KEY_PASSWORD` | The key password (can be left out if it's the same as the keystore password) |
 
-   ```properties
-   storeFile=nestsigner-release.jks
-   storePassword=YOUR_KEYSTORE_PASSWORD
-   keyAlias=upload
-   keyPassword=YOUR_KEY_PASSWORD
-   ```
+To turn a keystore into base64 text:
 
-4. Build with **Build → Generate Signed App Bundle / APK** in Android Studio, or run `./gradlew assembleRelease`.
+- **Termux:** `base64 -w 0 ~/storage/shared/Keystores/my-key.jks > ~/storage/shared/key.txt`, then copy the contents of `key.txt`.
+- **Linux:** `base64 -w 0 my-key.jks | wl-copy` (or `xclip -sel clip` on X11).
 
-`keystore.properties` and `*.jks` are in `.gitignore`, so they won't be committed by accident.
+Once the secrets are set, every push builds a signed release APK. Uninstall the old debug build once; after that, updates install over each other.
+
+To build signed locally instead, put the keystore next to `settings.gradle` and create `keystore.properties`:
+
+```properties
+storeFile=my-key.jks
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyAlias=YOUR_ALIAS
+keyPassword=YOUR_KEY_PASSWORD
+```
+
+Then run `./gradlew assembleRelease`. `keystore.properties` and keystores are in `.gitignore`, so they won't be committed.
 
 ## Project layout
 

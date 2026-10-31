@@ -19,26 +19,60 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Build debug APK
+      # If the signing secrets are set, build a release APK signed with your own key, so new
+      # builds install over old ones. Without them, fall back to a debug build.
+      - name: Set up signing key
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ]; then
+            # Tolerate line breaks or spaces pasted into the secret
+            printf '%s' "$KEYSTORE_BASE64" | tr -d ' \r\n' | base64 -d > release.jks
+            {
+              echo "storeFile=release.jks"
+              echo "storePassword=$KEYSTORE_PASSWORD"
+              echo "keyAlias=$KEY_ALIAS"
+              echo "keyPassword=${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+            } > keystore.properties
+            echo "variant=release" >> "$GITHUB_OUTPUT"
+            echo "Signing with your key (alias: $KEY_ALIAS)"
+          else
+            echo "variant=debug" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Unsigned build::Signing secrets not set, so this is a debug build signed with a temporary key. Add KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD to sign with your own key."
+          fi
+
+      - name: Build APK
+        env:
+          VARIANT: ${{ steps.signing.outputs.variant }}
         run: |
           echo "Android SDK: $ANDROID_HOME"
           chmod +x gradlew
+          task=assembleDebug
+          [ "$VARIANT" = "release" ] && task=assembleRelease
           set +e
-          ./gradlew --no-daemon assembleDebug 2>&1 | tee build.log
+          ./gradlew --no-daemon "$task" 2>&1 | tee build.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
             # Surface the failure as an annotation so it shows on the run's summary page
-            summary=$(grep -E "^e: |error:|ERROR:|AAPT|What went wrong" -A 12 build.log | head -n 60 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
+            summary=$(grep -E "^e: |error:|ERROR:|AAPT|What went wrong|Keystore|keystore" -A 12 build.log | head -n 60 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
             echo "::error title=Gradle build failed::${summary}"
           fi
           exit $status
 
       - name: Name the APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk NestSigner.apk
+        env:
+          VARIANT: ${{ steps.signing.outputs.variant }}
+        run: |
+          cp "app/build/outputs/apk/$VARIANT/app-$VARIANT.apk" NestSigner.apk
+          rm -f release.jks keystore.properties
 
       - uses: actions/upload-artifact@v5
         with:
-          name: NestSigner-debug
+          name: NestSigner-${{ steps.signing.outputs.variant }}
           path: NestSigner.apk
 
       # Publish to a "latest" release so there's a plain download link that works
@@ -48,10 +82,11 @@ jobs:
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
+          VARIANT: ${{ steps.signing.outputs.variant }}
         run: |
           gh release delete latest --cleanup-tag --yes || true
           gh release create latest NestSigner.apk \
             --target "$GITHUB_SHA" \
             --title "NestSigner (latest build)" \
-            --notes "Built automatically from commit ${GITHUB_SHA::7}. Download **NestSigner.apk** below and open it on your Android device to install." \
+            --notes "Built automatically from commit ${GITHUB_SHA::7} ($VARIANT build). Download **NestSigner.apk** below and open it on your Android device to install." \
             --latest
