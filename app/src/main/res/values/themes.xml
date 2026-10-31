@@ -16,7 +16,7 @@
         <item name="android:navigationBarColor">@color/bg</item>
     </style>
 
-    <style name="NestSigner.Card">
+    <style name="NestSigner.Card" parent="">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginBottom">16dp</item>
@@ -25,7 +25,7 @@
         <item name="android:background">@drawable/card_bg</item>
     </style>
 
-    <style name="NestSigner.CardTitle">
+    <style name="NestSigner.CardTitle" parent="">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginBottom">4dp</item>
@@ -34,7 +34,7 @@
         <item name="android:textStyle">bold</item>
     </style>
 
-    <style name="NestSigner.Label">
+    <style name="NestSigner.Label" parent="">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginTop">14dp</item>
@@ -43,7 +43,7 @@
         <item name="android:textSize">14sp</item>
     </style>
 
-    <style name="NestSigner.Helper">
+    <style name="NestSigner.Helper" parent="">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginTop">6dp</item>
@@ -51,7 +51,7 @@
         <item name="android:textSize">13sp</item>
     </style>
 
-    <style name="NestSigner.Field">
+    <style name="NestSigner.Field" parent="">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:minHeight">50dp</item>
@@ -67,7 +67,7 @@
         <item name="android:textCursorDrawable">@drawable/cursor</item>
     </style>
 
-    <style name="NestSigner.Check">
+    <style name="NestSigner.Check" parent="">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginTop">12dp</item>
@@ -77,7 +77,7 @@
         <item name="android:textSize">15sp</item>
     </style>
 
-    <style name="NestSigner.Button.Primary">
+    <style name="NestSigner.Button.Primary" parent="">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">56dp</item>
         <item name="android:background">@drawable/button_primary</item>
@@ -88,7 +88,7 @@
         <item name="android:stateListAnimator">@null</item>
     </style>
 
-    <style name="NestSigner.Button.Secondary">
+    <style name="NestSigner.Button.Secondary" parent="">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">50dp</item>
         <item name="android:background">@drawable/button_secondary</item>
