@@ -109,6 +109,13 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        // The user may be coming back from the All files access setting
+        signScreen.refreshAccessOffer();
+    }
+
+    @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putBoolean(STATE_MODE, signMode);

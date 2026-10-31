@@ -60,6 +60,9 @@
     <string name="sign">Sign APK</string>
     <string name="signing">Signing…</string>
     <string name="packing">Packing and signing…</string>
+    <string name="packing_progress">Packing %1$d / %2$d…</string>
+    <string name="allow_access">Allow All files access (faster)</string>
+    <string name="helper_access">Recommended for big folders like games. NestSigner then reads the folder directly instead of through Android\'s file picker service. Optional; you can turn it off any time in Settings.</string>
     <string name="signed_title">APK signed</string>
     <string name="signed_note">The signature was checked after signing. To update an installed app, it must be signed with the same key as before.</string>
     <string name="sign_another">Sign another</string>

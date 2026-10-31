@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- No permissions: files are saved through the system file picker. -->
+    <!-- Optional, off until the user turns it on: lets "Unzipped folder" read big folders
+         directly instead of through the picker's storage service. Everything else uses the
+         system file picker and needs no permissions. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
     <application
         android:allowBackup="false"

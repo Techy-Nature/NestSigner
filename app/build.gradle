@@ -10,8 +10,8 @@ android {
         applicationId "io.github.techynature.nestsigner"
         minSdk 26
         targetSdk 35
-        versionCode 4
-        versionName "1.3"
+        versionCode 5
+        versionName "1.4"
     }
 
     // Optional release signing. Fill in keystore.properties (see README) to enable it;

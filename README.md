@@ -1,6 +1,6 @@
 # NestSigner
 
-A small Android app that makes `.jks` signing keys **and signs APKs** with them. No terminal, no Android Studio, no permissions.
+A small Android app that makes `.jks` signing keys **and signs APKs** with them. No terminal, no Android Studio, and no permissions required.
 
 ## Download
 
@@ -35,6 +35,7 @@ If you unzipped an APK and edited files inside (assets, images, and so on), tap 
 - `resources.arsc`, native libraries (`.so`) and media files are stored uncompressed, which Android needs to install and run them.
 - Old signature files in `META-INF` are dropped.
 - If you pick the folder *containing* the APK folder, NestSigner finds the APK folder inside.
+- For big folders (games with thousands of files), tap **Allow All files access**. NestSigner then reads the folder directly, which is much faster and more reliable than going through Android's file picker service. It's optional and can be turned off in Settings at any time.
 
 This is for **unzipped** APKs, which have a binary `AndroidManifest.xml`. A **decompiled** apktool project (readable XML, `smali` folders, `apktool.yml`) needs recompiling with `apktool b` first; NestSigner will tell you if you pick one.
 
@@ -44,7 +45,7 @@ Signing uses Google's [apksig](https://android.googlesource.com/platform/tools/a
 
 Keystores it can open: **JKS** (from NestSigner, `keytool`, Android Studio and others), **PKCS12** (`.p12`, `.pfx`, and modern `.keystore` files) and **BKS**. JCEKS isn't supported.
 
-Everything runs on the device. Nothing is uploaded, and the app has no internet permission.
+Everything runs on the device. Nothing is uploaded, and the app has no internet permission. The only permission it can ask for is the optional All files access described above.
 
 ## Building the APK
 

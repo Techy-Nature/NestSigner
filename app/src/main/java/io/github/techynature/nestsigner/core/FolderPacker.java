@@ -2,9 +2,11 @@ package io.github.techynature.nestsigner.core;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -53,8 +55,18 @@ public final class FolderPacker {
 
     private FolderPacker() {}
 
+    /** Told how far packing has got, so big folders don't look frozen. */
+    public interface Progress {
+        void onProgress(int done, int total);
+    }
+
     /** Packs the items into {@code outApk}. Returns how many files were packed. */
     public static int pack(List<Item> items, File outApk) throws PackException {
+        return pack(items, outApk, null);
+    }
+
+    /** Packs the items into {@code outApk}, reporting progress. Returns how many files were packed. */
+    public static int pack(List<Item> items, File outApk, Progress progress) throws PackException {
         String prefix = findApkRoot(items);
 
         List<Item> chosen = new ArrayList<>();
@@ -78,22 +90,28 @@ public final class FolderPacker {
             return ra != rb ? Integer.compare(ra, rb) : names.get(a).compareTo(names.get(b));
         });
 
+        // STORED entries need their size and CRC before their data, so each one is copied to this
+        // spill file while measuring it. That way every source file is opened only once.
+        File spill = new File(outApk.getParentFile(), outApk.getName() + ".part");
+        String current = null;
+        int done = 0;
+        int total = order.length;
         try (ZipOutputStream zip = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(outApk), 1 << 16))) {
-            zip.setLevel(9);
             byte[] buf = new byte[64 * 1024];
             for (int idx : order) {
                 Item it = chosen.get(idx);
                 String name = names.get(idx);
+                current = name;
                 ZipEntry entry = new ZipEntry(name);
                 entry.setTime(0L);
                 if (shouldStore(name)) {
-                    // STORED entries need size and CRC up front, so read the file once to measure it
                     CRC32 crc = new CRC32();
                     long size = 0;
-                    try (InputStream in = it.open()) {
+                    try (InputStream in = it.open(); OutputStream tmp = new FileOutputStream(spill)) {
                         int n;
                         while ((n = in.read(buf)) > 0) {
                             crc.update(buf, 0, n);
+                            tmp.write(buf, 0, n);
                             size += n;
                         }
                     }
@@ -101,20 +119,43 @@ public final class FolderPacker {
                     entry.setSize(size);
                     entry.setCompressedSize(size);
                     entry.setCrc(crc.getValue());
+                    zip.putNextEntry(entry);
+                    try (InputStream in = new FileInputStream(spill)) {
+                        int n;
+                        while ((n = in.read(buf)) > 0) zip.write(buf, 0, n);
+                    }
                 } else {
                     entry.setMethod(ZipEntry.DEFLATED);
-                }
-                zip.putNextEntry(entry);
-                try (InputStream in = it.open()) {
-                    int n;
-                    while ((n = in.read(buf)) > 0) zip.write(buf, 0, n);
+                    zip.putNextEntry(entry);
+                    try (InputStream in = it.open()) {
+                        int n;
+                        while ((n = in.read(buf)) > 0) zip.write(buf, 0, n);
+                    }
                 }
                 zip.closeEntry();
+                done++;
+                if (progress != null && (done % 25 == 0 || done == total)) progress.onProgress(done, total);
             }
         } catch (IOException e) {
-            throw new PackException("Couldn't pack the folder: " + e.getMessage(), e);
+            String where = current == null ? "" : " while reading " + current;
+            throw new PackException("Couldn't pack the folder" + where + ". " + friendlyCause(e), e);
+        } finally {
+            //noinspection ResultOfMethodCallIgnored
+            spill.delete();
         }
         return chosen.size();
+    }
+
+    private static String friendlyCause(IOException e) {
+        String m = String.valueOf(e.getMessage());
+        if (m.contains("No content provider") || m.contains("dead") || m.contains("Binder")) {
+            return "Android's storage service stopped responding. Try again, or allow All files access "
+                    + "in NestSigner for big folders.";
+        }
+        if (m.contains("ENOSPC") || m.toLowerCase(Locale.US).contains("no space")) {
+            return "The device ran out of storage space.";
+        }
+        return m;
     }
 
     /**

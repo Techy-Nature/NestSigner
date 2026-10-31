@@ -4,10 +4,12 @@ import android.app.Activity;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
+import android.provider.Settings;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -55,6 +57,7 @@ final class SignScreen {
     private final Spinner aliasSpinner;
     private final TextView aliasSingle;
     private final CheckBox samePw;
+    private final View accessGroup;
 
     // The input is either an APK/zip file (apkUri) or an unzipped APK folder (folderUri)
     private Uri apkUri;
@@ -80,6 +83,8 @@ final class SignScreen {
         signButton = find(R.id.sign_button);
         resultCard = find(R.id.sign_result_card);
         resultText = find(R.id.sign_result_text);
+        accessGroup = find(R.id.sign_access_group);
+        find(R.id.sign_access_button).setOnClickListener(v -> requestAllFilesAccess());
 
         find(R.id.sign_pick_apk).setOnClickListener(v -> pickApk());
         find(R.id.sign_pick_folder).setOnClickListener(v -> pickFolder());
@@ -105,11 +110,32 @@ final class SignScreen {
         return new EditText[] {storePw, keyPw};
     }
 
+    /** Shows the "All files access" offer only when a folder is chosen and access isn't granted. */
+    void refreshAccessOffer() {
+        boolean offer = folderUri != null && Build.VERSION.SDK_INT >= 30 && !SafFolder.hasAllFilesAccess();
+        accessGroup.setVisibility(offer ? View.VISIBLE : View.GONE);
+    }
+
+    private void requestAllFilesAccess() {
+        if (Build.VERSION.SDK_INT < 30) return;
+        try {
+            activity.startActivity(new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                    Uri.parse("package:" + activity.getPackageName())));
+        } catch (Exception e) {
+            try {
+                activity.startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
+            } catch (Exception e2) {
+                showError("Couldn't open the All files access setting on this device.");
+            }
+        }
+    }
+
     private void clearInput() {
         apkUri = null;
         folderUri = null;
         inputName = null;
         apkName.setText(R.string.nothing_chosen);
+        refreshAccessOffer();
     }
 
     // ---------- picking ----------
@@ -162,6 +188,7 @@ final class SignScreen {
             folderUri = uri;
             inputName = SafFolder.displayName(activity, uri);
             apkName.setText(activity.getString(R.string.folder_chosen, inputName));
+            refreshAccessOffer();
         } else if (requestCode == REQ_PICK_KEYSTORE) {
             loadKeystoreFile(uri);
         } else {
@@ -321,7 +348,8 @@ final class SignScreen {
                     step = "reading the folder";
                     List<FolderPacker.Item> items = SafFolder.list(activity, sourceFolder);
                     step = "packing the folder";
-                    packed = FolderPacker.pack(items, in);
+                    packed = FolderPacker.pack(items, in, (done, total) -> main.post(() ->
+                            signButton.setText(activity.getString(R.string.packing_progress, done, total))));
                 } else {
                     step = "reading the APK";
                     copy(activity.getContentResolver().openInputStream(sourceFile), new FileOutputStream(in));
