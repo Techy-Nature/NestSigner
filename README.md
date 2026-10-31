@@ -23,12 +23,24 @@ Fill in a file name, a password, an alias and your name, tap **Create keystore**
 ## Sign an APK
 
 1. Switch to **Sign an APK**.
-2. Choose the APK.
+2. Choose the APK, **or** an unzipped APK folder (see below).
 3. Choose a keystore and type its password, then tap **Unlock keystore**.
 4. Pick the key (if the keystore has more than one) and enter its password if it's different.
 5. Tap **Sign APK** and pick where to save the signed copy. The original APK isn't changed.
 
-Signing uses Google's [apksig](https://android.googlesource.com/platform/tools/apksig/) library, the same engine as the SDK's `apksigner` and Android Studio. APKs get v1 (JAR), v2 and v3 signatures, and the result is verified before it's saved.
+### Unzipped APK folders
+
+If you unzipped an APK and edited files inside (assets, images, and so on), tap **Unzipped folder…** and pick that folder. NestSigner zips it back up, aligns it and signs it in one step:
+
+- `resources.arsc`, native libraries (`.so`) and media files are stored uncompressed, which Android needs to install and run them.
+- Old signature files in `META-INF` are dropped.
+- If you pick the folder *containing* the APK folder, NestSigner finds the APK folder inside.
+
+This is for **unzipped** APKs, which have a binary `AndroidManifest.xml`. A **decompiled** apktool project (readable XML, `smali` folders, `apktool.yml`) needs recompiling with `apktool b` first; NestSigner will tell you if you pick one.
+
+A `.zip` holding a single APK also works: NestSigner signs the APK inside.
+
+Signing uses Google's [apksig](https://android.googlesource.com/platform/tools/apksig/) library, the same engine as the SDK's `apksigner` and Android Studio. APKs are zip-aligned and get v1 (JAR), v2 and v3 signatures, and the result is verified before it's saved.
 
 Keystores it can open: **JKS** (from NestSigner, `keytool`, Android Studio and others), **PKCS12** (`.p12`, `.pfx`, and modern `.keystore` files) and **BKS**. JCEKS isn't supported.
 
@@ -78,6 +90,7 @@ The debug APK installs fine and is OK to share. For a proper release, sign NestS
 app/src/main/java/io/github/techynature/nestsigner/
 ├── MainActivity.java          Mode switch and the "Make a key" screen
 ├── SignScreen.java            The "Sign an APK" screen
+├── SafFolder.java             Lists files in a folder picked with the system picker
 ├── Ui.java                    Shared view helpers
 └── core/
     ├── KeystoreFactory.java   Generates the key, certificate and file in one call
@@ -87,7 +100,8 @@ app/src/main/java/io/github/techynature/nestsigner/
     ├── JksReader.java         Reads JKS files (Android can't on its own)
     ├── KeystoreLoader.java    Opens JKS / PKCS12 / BKS and unlocks a key
     ├── KeystoreException.java Friendly errors (wrong password, unsupported file…)
-    ├── ApkSigning.java        Signs and verifies APKs with apksig
+    ├── ApkSigning.java        Aligns, signs and verifies APKs with apksig
+    ├── FolderPacker.java      Packs an unzipped APK folder back into an APK
     └── Der.java               Tiny ASN.1/DER encoder
 ```
 

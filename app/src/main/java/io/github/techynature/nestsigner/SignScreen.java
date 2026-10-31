@@ -20,22 +20,27 @@ import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.List;
 
 import io.github.techynature.nestsigner.core.ApkSigning;
+import io.github.techynature.nestsigner.core.FolderPacker;
 import io.github.techynature.nestsigner.core.KeystoreException;
 import io.github.techynature.nestsigner.core.KeystoreLoader;
 
-/** The "Sign an APK" screen: pick an APK and a keystore, unlock it, save a signed copy. */
+/**
+ * The "Sign an APK" screen: pick an APK (or an unzipped APK folder) and a keystore,
+ * unlock it, and save a packed, aligned and signed copy.
+ */
 final class SignScreen {
 
     static final int REQ_PICK_APK = 50;
     static final int REQ_PICK_KEYSTORE = 51;
     static final int REQ_SAVE_APK = 52;
+    static final int REQ_PICK_FOLDER = 53;
 
     private static final int MAX_KEYSTORE_BYTES = 1024 * 1024;
 
@@ -51,8 +56,10 @@ final class SignScreen {
     private final TextView aliasSingle;
     private final CheckBox samePw;
 
+    // The input is either an APK/zip file (apkUri) or an unzipped APK folder (folderUri)
     private Uri apkUri;
-    private String apkDisplayName;
+    private Uri folderUri;
+    private String inputName;
     private byte[] keystoreBytes;
     private KeystoreLoader.Opened opened;
 
@@ -74,8 +81,9 @@ final class SignScreen {
         resultCard = find(R.id.sign_result_card);
         resultText = find(R.id.sign_result_text);
 
-        find(R.id.sign_pick_apk).setOnClickListener(v -> pick(REQ_PICK_APK, "application/vnd.android.package-archive"));
-        find(R.id.sign_pick_ks).setOnClickListener(v -> pick(REQ_PICK_KEYSTORE, "*/*"));
+        find(R.id.sign_pick_apk).setOnClickListener(v -> pickApk());
+        find(R.id.sign_pick_folder).setOnClickListener(v -> pickFolder());
+        find(R.id.sign_pick_ks).setOnClickListener(v -> pickKeystore());
         unlockButton.setOnClickListener(v -> unlock());
         samePw.setOnCheckedChangeListener((b, checked) ->
                 keyPwGroup.setVisibility(checked ? View.GONE : View.VISIBLE));
@@ -83,9 +91,7 @@ final class SignScreen {
         find(R.id.sign_again_button).setOnClickListener(v -> {
             resultCard.setVisibility(View.GONE);
             signButton.setVisibility(View.VISIBLE);
-            apkUri = null;
-            apkDisplayName = null;
-            apkName.setText(R.string.nothing_chosen);
+            clearInput();
             root.smoothScrollTo(0, 0);
         });
     }
@@ -99,18 +105,37 @@ final class SignScreen {
         return new EditText[] {storePw, keyPw};
     }
 
+    private void clearInput() {
+        apkUri = null;
+        folderUri = null;
+        inputName = null;
+        apkName.setText(R.string.nothing_chosen);
+    }
+
     // ---------- picking ----------
 
-    private void pick(int request, String mime) {
+    private void pickApk() {
         Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         i.addCategory(Intent.CATEGORY_OPENABLE);
-        i.setType(mime);
-        if (request == REQ_PICK_APK) {
-            // Some file managers label APKs as zip or octet-stream
-            i.setType("*/*");
-            i.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
-                    "application/vnd.android.package-archive", "application/zip", "application/octet-stream"});
-        }
+        // Some file managers label APKs as zip or octet-stream
+        i.setType("*/*");
+        i.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
+                "application/vnd.android.package-archive", "application/zip", "application/octet-stream"});
+        start(i, REQ_PICK_APK);
+    }
+
+    private void pickFolder() {
+        start(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQ_PICK_FOLDER);
+    }
+
+    private void pickKeystore() {
+        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        i.setType("*/*");
+        start(i, REQ_PICK_KEYSTORE);
+    }
+
+    private void start(Intent i, int request) {
         try {
             activity.startActivityForResult(i, request);
         } catch (Exception e) {
@@ -120,16 +145,23 @@ final class SignScreen {
 
     /** Returns true if the request code belonged to this screen. */
     boolean handleResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode != REQ_PICK_APK && requestCode != REQ_PICK_KEYSTORE && requestCode != REQ_SAVE_APK) {
+        if (requestCode != REQ_PICK_APK && requestCode != REQ_PICK_KEYSTORE
+                && requestCode != REQ_SAVE_APK && requestCode != REQ_PICK_FOLDER) {
             return false;
         }
         if (resultCode != Activity.RESULT_OK || data == null || data.getData() == null) return true;
         Uri uri = data.getData();
         showError(null);
         if (requestCode == REQ_PICK_APK) {
+            clearInput();
             apkUri = uri;
-            apkDisplayName = displayName(uri, "app.apk");
-            apkName.setText(apkDisplayName);
+            inputName = displayName(uri, "app.apk");
+            apkName.setText(inputName);
+        } else if (requestCode == REQ_PICK_FOLDER) {
+            clearInput();
+            folderUri = uri;
+            inputName = SafFolder.displayName(activity, uri);
+            apkName.setText(activity.getString(R.string.folder_chosen, inputName));
         } else if (requestCode == REQ_PICK_KEYSTORE) {
             loadKeystoreFile(uri);
         } else {
@@ -224,9 +256,14 @@ final class SignScreen {
 
     // ---------- signing ----------
 
+    private String outputBaseName() {
+        String base = inputName == null ? "app" : inputName;
+        return base.replaceAll("(?i)\\.(apk|zip)$", "");
+    }
+
     private void onSignClicked() {
-        if (apkUri == null) {
-            showError("Choose an APK to sign.");
+        if (apkUri == null && folderUri == null) {
+            showError("Choose an APK or an unzipped APK folder to sign.");
             return;
         }
         if (opened == null) {
@@ -242,12 +279,10 @@ final class SignScreen {
         }
         showError(null);
 
-        String base = apkDisplayName == null ? "app" : apkDisplayName;
-        if (base.toLowerCase().endsWith(".apk")) base = base.substring(0, base.length() - 4);
         Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         i.addCategory(Intent.CATEGORY_OPENABLE);
         i.setType("application/vnd.android.package-archive");
-        i.putExtra(Intent.EXTRA_TITLE, base + "-signed.apk");
+        i.putExtra(Intent.EXTRA_TITLE, outputBaseName() + "-signed.apk");
         try {
             activity.startActivityForResult(i, REQ_SAVE_APK);
         } catch (Exception e) {
@@ -260,16 +295,17 @@ final class SignScreen {
     }
 
     private void signTo(Uri target) {
-        if (apkUri == null || opened == null) {
+        if ((apkUri == null && folderUri == null) || opened == null) {
             showError("Something changed while saving. Please try again.");
             return;
         }
-        final Uri source = apkUri;
+        final Uri sourceFile = apkUri;
+        final Uri sourceFolder = folderUri;
         final String alias = selectedAlias();
         final char[] kp = keyPassword();
         final KeystoreLoader.Opened ks = opened;
 
-        setBusy(true);
+        setBusy(true, sourceFolder != null);
         new Thread(() -> {
             File dir = new File(activity.getCacheDir(), "signing");
             File in = new File(dir, "input.apk");
@@ -278,18 +314,26 @@ final class SignScreen {
             String error = null;
             Throwable problem = null;
             ApkSigning.Report report = null;
+            int packed = -1;
             try {
                 if (!dir.isDirectory() && !dir.mkdirs()) throw new IllegalStateException("No temp space.");
-                step = "reading the APK";
-                copy(activity.getContentResolver().openInputStream(source), new FileOutputStream(in));
-                if (in.length() == 0) throw new IllegalStateException("The chosen APK is empty.");
+                if (sourceFolder != null) {
+                    step = "reading the folder";
+                    List<FolderPacker.Item> items = SafFolder.list(activity, sourceFolder);
+                    step = "packing the folder";
+                    packed = FolderPacker.pack(items, in);
+                } else {
+                    step = "reading the APK";
+                    copy(activity.getContentResolver().openInputStream(sourceFile), new FileOutputStream(in));
+                }
+                if (in.length() == 0) throw new IllegalStateException("The chosen file is empty.");
                 step = "unlocking the key";
                 KeystoreLoader.SigningKey key = ks.unlock(alias, kp);
                 step = "signing";
                 report = ApkSigning.sign(in, out, key, dir);
                 step = "saving the signed APK";
                 Ui.writeToDocument(activity, out, target);
-            } catch (KeystoreException | ApkSigning.SignException e) {
+            } catch (KeystoreException | ApkSigning.SignException | FolderPacker.PackException e) {
                 error = e.getMessage();
                 problem = e;
             } catch (Throwable t) {
@@ -313,13 +357,14 @@ final class SignScreen {
             final String finalError = error;
             final Throwable finalProblem = problem;
             final ApkSigning.Report finalReport = report;
+            final int finalPacked = packed;
             main.post(() -> {
-                setBusy(false);
+                setBusy(false, false);
                 if (finalError != null) {
                     showError(finalError);
                     Ui.showProblem(activity, "Signing failed", finalError, finalProblem);
                 } else {
-                    showResult(finalReport, alias);
+                    showResult(finalReport, alias, finalPacked);
                 }
             });
         }, "nestsigner-sign").start();
@@ -334,16 +379,22 @@ final class SignScreen {
         }
     }
 
-    private void setBusy(boolean busy) {
+    private void setBusy(boolean busy, boolean packing) {
         signButton.setEnabled(!busy);
-        signButton.setText(busy ? R.string.signing : R.string.sign);
+        signButton.setText(!busy ? R.string.sign : packing ? R.string.packing : R.string.signing);
     }
 
-    private void showResult(ApkSigning.Report r, String alias) {
-        String base = apkDisplayName == null ? "app" : apkDisplayName.replaceAll("(?i)\\.apk$", "");
-        resultText.setText("File: " + base + "-signed.apk"
-                + (r.extractedFrom != null ? "\n(unpacked " + r.extractedFrom + " from the zip you chose)" : "")
+    private void showResult(ApkSigning.Report r, String alias, int packedFiles) {
+        String from = "";
+        if (packedFiles >= 0) {
+            from = "\n(packed " + packedFiles + " files from the folder " + inputName + ")";
+        } else if (r.extractedFrom != null) {
+            from = "\n(unpacked " + r.extractedFrom + " from the zip you chose)";
+        }
+        resultText.setText("File: " + outputBaseName() + "-signed.apk"
+                + from
                 + "\nKey: " + alias
+                + "\nAligned: yes"
                 + "\nSigned with: " + r.schemes()
                 + "\nSigner: " + r.signer
                 + "\n\nCertificate SHA-256:\n" + r.certSha256);

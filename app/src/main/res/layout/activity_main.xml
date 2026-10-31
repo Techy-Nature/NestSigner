@@ -257,11 +257,27 @@
                     android:id="@+id/sign_apk_name"
                     style="@style/NestSigner.Chosen"
                     android:text="@string/nothing_chosen" />
-                <Button
-                    android:id="@+id/sign_pick_apk"
-                    style="@style/NestSigner.Button.Secondary"
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="@string/choose_apk" />
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/sign_pick_apk"
+                        style="@style/NestSigner.Button.Secondary"
+                        android:layout_width="0dp"
+                        android:layout_marginEnd="8dp"
+                        android:layout_weight="1"
+                        android:text="@string/choose_apk" />
+
+                    <Button
+                        android:id="@+id/sign_pick_folder"
+                        style="@style/NestSigner.Button.Secondary"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:text="@string/choose_folder" />
+                </LinearLayout>
                 <TextView style="@style/NestSigner.Helper" android:text="@string/helper_apk" />
             </LinearLayout>
 

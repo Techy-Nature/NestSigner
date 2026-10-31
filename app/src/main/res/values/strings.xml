@@ -48,8 +48,10 @@
     <!-- Sign an APK -->
     <string name="section_apk">APK to sign</string>
     <string name="nothing_chosen">Nothing chosen yet</string>
-    <string name="choose_apk">Choose APK…</string>
-    <string name="helper_apk">The original isn\'t changed. You\'ll save a signed copy.</string>
+    <string name="choose_apk">APK file…</string>
+    <string name="choose_folder">Unzipped folder…</string>
+    <string name="folder_chosen">Folder: %1$s</string>
+    <string name="helper_apk">Pick an APK, or a folder you got by unzipping one. NestSigner packs, aligns and signs it. Your originals aren\'t changed.</string>
     <string name="section_sign_keystore">Signing key</string>
     <string name="choose_keystore">Choose keystore…</string>
     <string name="helper_keystore_types">.jks, .keystore, .p12, .pfx or .bks</string>
@@ -57,9 +59,10 @@
     <string name="sign_same_pw">Key password is the same as the keystore password</string>
     <string name="sign">Sign APK</string>
     <string name="signing">Signing…</string>
+    <string name="packing">Packing and signing…</string>
     <string name="signed_title">APK signed</string>
     <string name="signed_note">The signature was checked after signing. To update an installed app, it must be signed with the same key as before.</string>
     <string name="sign_another">Sign another</string>
 
-    <string name="footer">Keys: RSA 2048 · SHA256withRSA · JKS. Signing: APK v1 + v2 + v3. Everything happens on this device; nothing is uploaded.</string>
+    <string name="footer">Keys: RSA 2048 · SHA256withRSA · JKS. Signing: APK v1 + v2 + v3, aligned. Everything happens on this device; nothing is uploaded.</string>
 </resources>
