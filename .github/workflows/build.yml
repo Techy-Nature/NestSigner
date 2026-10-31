@@ -20,7 +20,15 @@ jobs:
         run: |
           echo "Android SDK: $ANDROID_HOME"
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          set +e
+          ./gradlew --no-daemon assembleDebug 2>&1 | tee build.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            # Surface the failure as an annotation so it shows on the run's summary page
+            summary=$(grep -E "^e: |error:|ERROR:|AAPT|What went wrong" -A 12 build.log | head -n 60 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
+            echo "::error title=Gradle build failed::${summary}"
+          fi
+          exit $status
 
       - uses: actions/upload-artifact@v5
         with:
