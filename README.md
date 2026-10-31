@@ -1,10 +1,10 @@
 # NestSigner
 
-A small Android app that makes `.jks` signing keys for Android apps. No terminal, no Android Studio, no permissions.
+A small Android app that makes `.jks` signing keys **and signs APKs** with them. No terminal, no Android Studio, no permissions.
 
-You fill in a file name, a password, an alias and your name, tap **Create keystore**, pick where to save, and you're done. It also shows the SHA-1 and SHA-256 fingerprints (handy for Firebase, Google sign-in and similar services) with a copy button.
+## Make a key
 
-## What it makes
+Fill in a file name, a password, an alias and your name, tap **Create keystore**, and pick where to save. NestSigner shows the SHA-1 and SHA-256 fingerprints (handy for Firebase, Google sign-in and similar services) with a copy button.
 
 | Setting | Value |
 |---|---|
@@ -14,7 +14,17 @@ You fill in a file name, a password, an alias and your name, tap **Create keysto
 | Validity | 30 years by default (Google Play needs 25+) |
 | Alias | Saved in lowercase, the same as `keytool` does |
 
-Files work with `keytool`, `jarsigner`, `apksigner`, Gradle `signingConfigs`, Android Studio, and APK editors like MT Manager and APK Editor Studio.
+## Sign an APK
+
+1. Switch to **Sign an APK**.
+2. Choose the APK.
+3. Choose a keystore and type its password, then tap **Unlock keystore**.
+4. Pick the key (if the keystore has more than one) and enter its password if it's different.
+5. Tap **Sign APK** and pick where to save the signed copy. The original APK isn't changed.
+
+Signing uses Google's [apksig](https://android.googlesource.com/platform/tools/apksig/) library, the same engine as the SDK's `apksigner` and Android Studio. APKs get v1 (JAR), v2 and v3 signatures, and the result is verified before it's saved.
+
+Keystores it can open: **JKS** (from NestSigner, `keytool`, Android Studio and others), **PKCS12** (`.p12`, `.pfx`, and modern `.keystore` files) and **BKS**. JCEKS isn't supported.
 
 Everything runs on the device. Nothing is uploaded, and the app has no internet permission.
 
@@ -60,18 +70,24 @@ The debug APK installs fine and is OK to share. For a proper release, sign NestS
 
 ```
 app/src/main/java/io/github/techynature/nestsigner/
-├── MainActivity.java          The single screen: form, validation, save
+├── MainActivity.java          Mode switch and the "Make a key" screen
+├── SignScreen.java            The "Sign an APK" screen
+├── Ui.java                    Shared view helpers
 └── core/
     ├── KeystoreFactory.java   Generates the key, certificate and file in one call
     ├── CertInfo.java          Certificate name fields and their validation
     ├── CertBuilder.java       Builds the self-signed X.509 certificate
     ├── JksWriter.java         Writes the JKS file format
+    ├── JksReader.java         Reads JKS files (Android can't on its own)
+    ├── KeystoreLoader.java    Opens JKS / PKCS12 / BKS and unlocks a key
+    ├── KeystoreException.java Friendly errors (wrong password, unsupported file…)
+    ├── ApkSigning.java        Signs and verifies APKs with apksig
     └── Der.java               Tiny ASN.1/DER encoder
 ```
 
-Android has no built-in JKS support, so `JksWriter` writes the format directly. It matches the JDK's own implementation byte for byte in structure, and was tested by loading the output with the JDK's `KeyStore`, `keytool -list -v`, `keytool -importkeystore`, and by signing and verifying a JAR with `jarsigner`.
+Android has no built-in JKS support, so `JksWriter` and `JksReader` handle the format directly. It matches the JDK's own implementation byte for byte in structure, and was tested by loading the output with the JDK's `KeyStore`, `keytool -list -v`, `keytool -importkeystore`, and by signing and verifying a JAR with `jarsigner`.
 
-There are no third-party dependencies.
+The only dependency is Google's `apksig`.
 
 ## A word to users
 

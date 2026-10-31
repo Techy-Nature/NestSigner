@@ -10,8 +10,8 @@ android {
         applicationId "io.github.techynature.nestsigner"
         minSdk 26
         targetSdk 35
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1"
     }
 
     // Optional release signing. Fill in keystore.properties (see README) to enable it;
@@ -38,9 +38,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 }
 
-// No dependencies: the keystore engine uses only java.security, which Android ships.
+dependencies {
+    // Google's APK signing library — the engine behind the SDK's apksigner and Android Studio.
+    implementation "com.android.tools.build:apksig:8.7.3"
+}

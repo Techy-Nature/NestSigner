@@ -11,7 +11,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.DocumentsContract;
-import android.text.InputType;
 import android.view.View;
 import android.view.WindowInsets;
 import android.widget.Button;
@@ -30,19 +29,25 @@ import io.github.techynature.nestsigner.core.KeystoreFactory;
 
 public class MainActivity extends Activity {
 
-    private static final int REQ_SAVE = 42;
+    private static final int REQ_SAVE_KEYSTORE = 42;
     private static final int MIN_PASSWORD = 6;
+    private static final String STATE_MODE = "mode";
 
     private ScrollView root;
+    private TextView tabCreate, tabSign;
+    private View createSection, signSection;
+    private SignScreen signScreen;
+
     private EditText fileName, storePw, storePw2, alias, keyPw, keyPw2;
     private EditText cn, ou, org, city, state, country, years;
-    private CheckBox samePw, showPw;
+    private CheckBox samePw;
     private View keyPwGroup, resultCard;
     private TextView errorText, resultText;
     private Button createButton;
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private String lastDetails = "";
+    private boolean signMode;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,6 +55,11 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         root = findViewById(R.id.root);
+        tabCreate = findViewById(R.id.tab_create);
+        tabSign = findViewById(R.id.tab_sign);
+        createSection = findViewById(R.id.create_section);
+        signSection = findViewById(R.id.sign_section);
+
         fileName = findViewById(R.id.file_name);
         storePw = findViewById(R.id.store_pw);
         storePw2 = findViewById(R.id.store_pw2);
@@ -58,7 +68,6 @@ public class MainActivity extends Activity {
         keyPwGroup = findViewById(R.id.key_pw_group);
         keyPw = findViewById(R.id.key_pw);
         keyPw2 = findViewById(R.id.key_pw2);
-        showPw = findViewById(R.id.show_pw);
         cn = findViewById(R.id.cn);
         ou = findViewById(R.id.ou);
         org = findViewById(R.id.org);
@@ -71,13 +80,22 @@ public class MainActivity extends Activity {
         resultCard = findViewById(R.id.result_card);
         resultText = findViewById(R.id.result_text);
 
+        signScreen = new SignScreen(this, root);
+
         applyInsets();
+
+        tabCreate.setOnClickListener(v -> setMode(false));
+        tabSign.setOnClickListener(v -> setMode(true));
+        setMode(savedInstanceState != null && savedInstanceState.getBoolean(STATE_MODE));
 
         samePw.setOnCheckedChangeListener((b, checked) ->
                 keyPwGroup.setVisibility(checked ? View.GONE : View.VISIBLE));
         keyPwGroup.setVisibility(samePw.isChecked() ? View.GONE : View.VISIBLE);
 
-        showPw.setOnCheckedChangeListener((b, checked) -> setPasswordsVisible(checked));
+        ((CheckBox) findViewById(R.id.show_pw)).setOnCheckedChangeListener((b, checked) ->
+                Ui.setPasswordsVisible(checked, storePw, storePw2, keyPw, keyPw2));
+        ((CheckBox) findViewById(R.id.sign_show_pw)).setOnCheckedChangeListener((b, checked) ->
+                Ui.setPasswordsVisible(checked, signScreen.passwordFields()));
 
         createButton.setOnClickListener(v -> onCreateClicked());
         findViewById(R.id.copy_button).setOnClickListener(v -> copyDetails());
@@ -86,6 +104,27 @@ public class MainActivity extends Activity {
             createButton.setVisibility(View.VISIBLE);
             root.smoothScrollTo(0, 0);
         });
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean(STATE_MODE, signMode);
+    }
+
+    private void setMode(boolean sign) {
+        signMode = sign;
+        createSection.setVisibility(sign ? View.GONE : View.VISIBLE);
+        signSection.setVisibility(sign ? View.VISIBLE : View.GONE);
+        styleTab(tabCreate, !sign);
+        styleTab(tabSign, sign);
+        root.scrollTo(0, 0);
+    }
+
+    private void styleTab(TextView tab, boolean selected) {
+        tab.setSelected(selected);
+        tab.setBackgroundResource(selected ? R.drawable.tab_selected : 0);
+        tab.setTextColor(getColor(selected ? R.color.on_accent : R.color.text2));
     }
 
     /** Keeps content clear of the status bar, nav bar and keyboard (Android 15 draws edge-to-edge). */
@@ -108,18 +147,7 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void setPasswordsVisible(boolean visible) {
-        int type = InputType.TYPE_CLASS_TEXT | (visible
-                ? InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-                : InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        for (EditText e : new EditText[] {storePw, storePw2, keyPw, keyPw2}) {
-            int sel = e.getSelectionEnd();
-            e.setInputType(type);
-            e.setSelection(Math.max(0, sel));
-        }
-    }
-
-    // ---------- validation ----------
+    // ---------- create: validation ----------
 
     private String validate() {
         String name = cleanFileName();
@@ -177,10 +205,10 @@ public class MainActivity extends Activity {
     private void showError(String msg) {
         errorText.setText(msg);
         errorText.setVisibility(msg == null ? View.GONE : View.VISIBLE);
-        if (msg != null) root.post(() -> root.smoothScrollTo(0, errorText.getTop()));
+        if (msg != null) Ui.scrollTo(root, errorText);
     }
 
-    // ---------- create + save ----------
+    // ---------- create: generate + save ----------
 
     private void onCreateClicked() {
         String err = validate();
@@ -192,7 +220,7 @@ public class MainActivity extends Activity {
         i.setType("application/octet-stream");
         i.putExtra(Intent.EXTRA_TITLE, cleanFileName() + ".jks");
         try {
-            startActivityForResult(i, REQ_SAVE);
+            startActivityForResult(i, REQ_SAVE_KEYSTORE);
         } catch (Exception e) {
             showError("This device has no file picker to save with.");
         }
@@ -201,7 +229,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != REQ_SAVE) return;
+        if (signScreen.handleResult(requestCode, resultCode, data)) return;
+        if (requestCode != REQ_SAVE_KEYSTORE) return;
         if (resultCode != RESULT_OK || data == null || data.getData() == null) {
             Toast.makeText(this, "Save cancelled", Toast.LENGTH_SHORT).show();
             return;
@@ -278,7 +307,7 @@ public class MainActivity extends Activity {
 
         createButton.setVisibility(View.GONE);
         resultCard.setVisibility(View.VISIBLE);
-        root.post(() -> root.smoothScrollTo(0, resultCard.getTop()));
+        Ui.scrollTo(root, resultCard);
     }
 
     private void copyDetails() {

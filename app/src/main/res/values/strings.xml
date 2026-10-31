@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NestSigner</string>
-    <string name="tagline">Make an Android signing key (.jks). No terminal, no Android Studio.</string>
+    <string name="tagline">Make Android signing keys and sign APKs. No terminal, no Android Studio.</string>
 
+    <string name="tab_create">Make a key</string>
+    <string name="tab_sign">Sign an APK</string>
+
+    <!-- Make a key -->
     <string name="section_keystore">Keystore file</string>
     <string name="label_file_name">File name</string>
     <string name="default_file_name">upload-key</string>
@@ -41,5 +45,21 @@
     <string name="copy_details">Copy details</string>
     <string name="make_another">Make another</string>
 
-    <string name="footer">RSA 2048 · SHA256withRSA · JKS. Everything happens on this device; nothing is uploaded.</string>
+    <!-- Sign an APK -->
+    <string name="section_apk">APK to sign</string>
+    <string name="nothing_chosen">Nothing chosen yet</string>
+    <string name="choose_apk">Choose APK…</string>
+    <string name="helper_apk">The original isn\'t changed. You\'ll save a signed copy.</string>
+    <string name="section_sign_keystore">Signing key</string>
+    <string name="choose_keystore">Choose keystore…</string>
+    <string name="helper_keystore_types">.jks, .keystore, .p12, .pfx or .bks</string>
+    <string name="unlock">Unlock keystore</string>
+    <string name="sign_same_pw">Key password is the same as the keystore password</string>
+    <string name="sign">Sign APK</string>
+    <string name="signing">Signing…</string>
+    <string name="signed_title">APK signed</string>
+    <string name="signed_note">The signature was checked after signing. To update an installed app, it must be signed with the same key as before.</string>
+    <string name="sign_another">Sign another</string>
+
+    <string name="footer">Keys: RSA 2048 · SHA256withRSA · JKS. Signing: APK v1 + v2 + v3. Everything happens on this device; nothing is uploaded.</string>
 </resources>
