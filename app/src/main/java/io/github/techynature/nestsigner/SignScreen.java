@@ -274,18 +274,28 @@ final class SignScreen {
             File dir = new File(activity.getCacheDir(), "signing");
             File in = new File(dir, "input.apk");
             File out = new File(dir, "output.apk");
+            String step = "preparing";
             String error = null;
+            Throwable problem = null;
             ApkSigning.Report report = null;
             try {
                 if (!dir.isDirectory() && !dir.mkdirs()) throw new IllegalStateException("No temp space.");
+                step = "reading the APK";
                 copy(activity.getContentResolver().openInputStream(source), new FileOutputStream(in));
+                if (in.length() == 0) throw new IllegalStateException("The chosen APK is empty.");
+                step = "unlocking the key";
                 KeystoreLoader.SigningKey key = ks.unlock(alias, kp);
-                report = ApkSigning.sign(in, out, key);
-                copy(new FileInputStream(out), activity.getContentResolver().openOutputStream(target, "wt"));
+                step = "signing";
+                report = ApkSigning.sign(in, out, key, dir);
+                step = "saving the signed APK";
+                Ui.writeToDocument(activity, out, target);
             } catch (KeystoreException | ApkSigning.SignException e) {
                 error = e.getMessage();
-            } catch (Exception e) {
-                error = "Something went wrong: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+                problem = e;
+            } catch (Throwable t) {
+                // Catch everything, including library errors, so a failure is never silent
+                error = "Something went wrong while " + step + ".";
+                problem = t;
             } finally {
                 Arrays.fill(kp, '\0');
                 //noinspection ResultOfMethodCallIgnored
@@ -296,16 +306,21 @@ final class SignScreen {
             if (error != null) {
                 try {
                     DocumentsContract.deleteDocument(activity.getContentResolver(), target);
-                } catch (Exception ignored) {
+                } catch (Throwable ignored) {
                     // the provider may not support deleting
                 }
             }
             final String finalError = error;
+            final Throwable finalProblem = problem;
             final ApkSigning.Report finalReport = report;
             main.post(() -> {
                 setBusy(false);
-                if (finalError != null) showError(finalError);
-                else showResult(finalReport, alias);
+                if (finalError != null) {
+                    showError(finalError);
+                    Ui.showProblem(activity, "Signing failed", finalError, finalProblem);
+                } else {
+                    showResult(finalReport, alias);
+                }
             });
         }, "nestsigner-sign").start();
     }
@@ -327,6 +342,7 @@ final class SignScreen {
     private void showResult(ApkSigning.Report r, String alias) {
         String base = apkDisplayName == null ? "app" : apkDisplayName.replaceAll("(?i)\\.apk$", "");
         resultText.setText("File: " + base + "-signed.apk"
+                + (r.extractedFrom != null ? "\n(unpacked " + r.extractedFrom + " from the zip you chose)" : "")
                 + "\nKey: " + alias
                 + "\nSigned with: " + r.schemes()
                 + "\nSigner: " + r.signer

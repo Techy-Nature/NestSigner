@@ -20,7 +20,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.OutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.text.DateFormat;
 import java.util.Arrays;
 
@@ -53,6 +54,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        Ui.BuildConfigInfo.init(this);
 
         root = findViewById(R.id.root);
         tabCreate = findViewById(R.id.tab_create);
@@ -255,30 +257,40 @@ public class MainActivity extends Activity {
         setBusy(true);
         new Thread(() -> {
             String error = null;
+            Throwable problem = null;
             KeystoreFactory.Result result = null;
+            File temp = new File(getCacheDir(), "new-keystore.jks");
+            String step = "creating the key";
             try {
                 result = KeystoreFactory.create(aliasText, store, key, info, y);
-                try (OutputStream out = getContentResolver().openOutputStream(target, "wt")) {
-                    if (out == null) throw new IllegalStateException("Couldn't open the file for writing.");
-                    out.write(result.jksBytes);
+                step = "saving the keystore";
+                try (FileOutputStream f = new FileOutputStream(temp)) {
+                    f.write(result.jksBytes);
                 }
-            } catch (Exception e) {
-                error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                Ui.writeToDocument(this, temp, target);
+            } catch (Throwable t) {
+                // Catch everything so a failure is never silent
+                error = "Something went wrong while " + step + ".";
+                problem = t;
                 try {
                     DocumentsContract.deleteDocument(getContentResolver(), target);
-                } catch (Exception ignored) {
+                } catch (Throwable ignored) {
                     // leave it; the picker's provider may not support deleting
                 }
             } finally {
                 Arrays.fill(store, '\0');
                 Arrays.fill(key, '\0');
+                //noinspection ResultOfMethodCallIgnored
+                temp.delete();
             }
             final String finalError = error;
+            final Throwable finalProblem = problem;
             final KeystoreFactory.Result finalResult = result;
             main.post(() -> {
                 setBusy(false);
                 if (finalError != null) {
-                    showError("Something went wrong: " + finalError);
+                    showError(finalError);
+                    Ui.showProblem(this, "Couldn't save the keystore", finalError, finalProblem);
                 } else {
                     showResult(finalResult, shownName);
                 }
