@@ -2,6 +2,12 @@
 
 A small Android app that makes `.jks` signing keys **and signs APKs** with them. No terminal, no Android Studio, no permissions.
 
+## Download
+
+**[Download NestSigner.apk](https://github.com/Techy-Nature/NestSigner/releases/latest/download/NestSigner.apk)**, then open it on your Android device to install. You may need to allow your browser or file manager to install unknown apps.
+
+This link always points to the newest build.
+
 ## Make a key
 
 Fill in a file name, a password, an alias and your name, tap **Create keystore**, and pick where to save. NestSigner shows the SHA-1 and SHA-256 fingerprints (handy for Firebase, Google sign-in and similar services) with a copy button.
@@ -45,7 +51,7 @@ The project already contains `.github/workflows/build.yml`.
 
 1. Put the project in any GitHub repo.
 2. Open the repo's **Actions** tab. A build starts on every push, or press **Run workflow**.
-3. When it's green, open the run and download **NestSigner-debug** from the Artifacts section.
+3. When it's green, the APK is published to the repo's **Releases** page as `NestSigner.apk`.
 
 ## Signing a release build of NestSigner
 

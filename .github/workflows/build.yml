@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write # needed to publish the "latest" release
+
 jobs:
   build:
     # 24.04 runners come with the Android SDK preinstalled (ANDROID_HOME is set).
@@ -30,7 +33,25 @@ jobs:
           fi
           exit $status
 
+      - name: Name the APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk NestSigner.apk
+
       - uses: actions/upload-artifact@v5
         with:
           name: NestSigner-debug
-          path: app/build/outputs/apk/debug/*.apk
+          path: NestSigner.apk
+
+      # Publish to a "latest" release so there's a plain download link that works
+      # on phones without signing in:
+      # https://github.com/Techy-Nature/NestSigner/releases/latest/download/NestSigner.apk
+      - name: Publish latest release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest NestSigner.apk \
+            --target "$GITHUB_SHA" \
+            --title "NestSigner (latest build)" \
+            --notes "Built automatically from commit ${GITHUB_SHA::7}. Download **NestSigner.apk** below and open it on your Android device to install." \
+            --latest
