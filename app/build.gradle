@@ -1,0 +1,46 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "io.github.techynature.nestsigner"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "io.github.techynature.nestsigner"
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+    }
+
+    // Optional release signing. Fill in keystore.properties (see README) to enable it;
+    // without it, `assembleRelease` produces an unsigned APK and `assembleDebug` still works.
+    def propsFile = rootProject.file("keystore.properties")
+    if (propsFile.exists()) {
+        def props = new Properties()
+        propsFile.withInputStream { props.load(it) }
+        signingConfigs {
+            release {
+                storeFile rootProject.file(props["storeFile"])
+                storePassword props["storePassword"]
+                keyAlias props["keyAlias"]
+                keyPassword props["keyPassword"]
+            }
+        }
+        buildTypes.release.signingConfig signingConfigs.release
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+// No dependencies: the keystore engine uses only java.security, which Android ships.

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NestSigner</string>
+    <string name="tagline">Make an Android signing key (.jks). No terminal, no Android Studio.</string>
+
+    <string name="section_keystore">Keystore file</string>
+    <string name="label_file_name">File name</string>
+    <string name="default_file_name">upload-key</string>
+    <string name="helper_file_name">.jks is added for you. You\'ll pick where to save it.</string>
+    <string name="label_store_pw">Keystore password</string>
+    <string name="hint_min_chars">At least 6 characters</string>
+    <string name="hint_confirm">Type it again</string>
+
+    <string name="section_key">Key</string>
+    <string name="label_alias">Key alias</string>
+    <string name="default_alias">upload</string>
+    <string name="helper_alias">A short name for the key. Saved in lowercase.</string>
+    <string name="same_pw">Use the keystore password for the key too</string>
+    <string name="label_key_pw">Key password</string>
+    <string name="show_pw">Show passwords</string>
+
+    <string name="section_cert">Certificate</string>
+    <string name="helper_cert">Who the key belongs to. Only your name is required.</string>
+    <string name="label_cn">Your name or organization</string>
+    <string name="label_ou">Team or department</string>
+    <string name="label_org">Organization</string>
+    <string name="label_city">City</string>
+    <string name="label_state">State or region</string>
+    <string name="label_country">Country</string>
+    <string name="hint_optional">Optional</string>
+    <string name="hint_country">US</string>
+    <string name="label_years">Valid for (years)</string>
+    <string name="default_years">30</string>
+    <string name="helper_years">Google Play needs at least 25 years.</string>
+
+    <string name="create">Create keystore</string>
+    <string name="creating">Creating…</string>
+
+    <string name="saved_title">Keystore saved</string>
+    <string name="backup_warning">Back up this file and write down both passwords and the alias. If you lose any of them, you can\'t sign updates with this key.</string>
+    <string name="copy_details">Copy details</string>
+    <string name="make_another">Make another</string>
+
+    <string name="footer">RSA 2048 · SHA256withRSA · JKS. Everything happens on this device; nothing is uploaded.</string>
+</resources>
