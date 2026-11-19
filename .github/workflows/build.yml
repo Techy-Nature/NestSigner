@@ -75,18 +75,41 @@ jobs:
           name: NestSigner-${{ steps.signing.outputs.variant }}
           path: NestSigner.apk
 
-      # Publish to a "latest" release so there's a plain download link that works
-      # on phones without signing in:
+      # Publish each new version as its own release, tagged v<versionName> (for example v1.4),
+      # so app stores such as Komi Store and Obtainium can tell when there's an update.
+      # The newest release is marked "latest", so this download link keeps working:
       # https://github.com/Techy-Nature/NestSigner/releases/latest/download/NestSigner.apk
-      - name: Publish latest release
+      # A push that doesn't raise versionName in app/build.gradle builds the APK (see the run's
+      # Artifacts) but publishes nothing.
+      - name: Publish release
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
           VARIANT: ${{ steps.signing.outputs.variant }}
         run: |
-          gh release delete latest --cleanup-tag --yes || true
-          gh release create latest NestSigner.apk \
+          VERSION=$(sed -n 's/^[[:space:]]*versionName[[:space:]]*"\([^"]*\)".*/\1/p' app/build.gradle | head -n 1)
+          if [ -z "$VERSION" ]; then
+            echo "::error title=No version found::Couldn't read versionName from app/build.gradle."
+            exit 1
+          fi
+          TAG="v$VERSION"
+
+          # Releases must be signed with your own key, or they won't update over each other.
+          if [ "$VARIANT" != "release" ]; then
+            echo "::warning title=Not published::This is a debug build, so $TAG wasn't published. Add the signing secrets (see README) to publish releases."
+            exit 0
+          fi
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "::notice title=Not published::$TAG is already published. To publish a new release, raise versionCode and versionName in app/build.gradle."
+            exit 0
+          fi
+
+          gh release create "$TAG" NestSigner.apk \
             --target "$GITHUB_SHA" \
-            --title "NestSigner (latest build)" \
-            --notes "Built automatically from commit ${GITHUB_SHA::7} ($VARIANT build). Download **NestSigner.apk** below and open it on your Android device to install." \
+            --title "NestSigner $VERSION" \
+            --notes "Download **NestSigner.apk** below and open it on your Android device to install. Built from commit ${GITHUB_SHA::7}." \
             --latest
+
+          # Remove the old single "latest" release that earlier builds kept replacing.
+          gh release delete latest --cleanup-tag --yes 2> /dev/null || true
