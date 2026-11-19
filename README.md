@@ -6,7 +6,7 @@ A small Android app that makes `.jks` signing keys **and signs APKs** with them.
 
 **[Download NestSigner.apk](https://github.com/Techy-Nature/NestSigner/releases/latest/download/NestSigner.apk)**, then open it on your Android device to install. You may need to allow your browser or file manager to install unknown apps.
 
-This link always points to the newest build.
+This link always points to the newest version. Every version is also listed on the [Releases](https://github.com/Techy-Nature/NestSigner/releases) page, so app stores that read GitHub releases, such as Komi Store and Obtainium, can track updates.
 
 ## Make a key
 
@@ -64,7 +64,7 @@ The project already contains `.github/workflows/build.yml`.
 
 1. Put the project in any GitHub repo.
 2. Open the repo's **Actions** tab. A build starts on every push, or press **Run workflow**.
-3. When it's green, the APK is published to the repo's **Releases** page as `NestSigner.apk`.
+3. When it's green, the APK is under the run's **Artifacts**. When the build is a new version, it's also published to the repo's **Releases** page as `NestSigner.apk` (see [Publishing a new version](#publishing-a-new-version)).
 
 ## Signing NestSigner's own builds
 
@@ -95,6 +95,17 @@ keyPassword=YOUR_KEY_PASSWORD
 
 Then run `./gradlew assembleRelease`. `keystore.properties` and keystores are in `.gitignore`, so they won't be committed.
 
+## Publishing a new version
+
+Releases are numbered from `versionName` in `app/build.gradle`, so version 1.4 is published as release `v1.4`.
+
+1. Open `app/build.gradle`.
+2. Raise `versionCode` by 1 (for example 5 to 6). Android uses this number to decide that an APK is an update.
+3. Set `versionName` to the new version (for example `"1.5"`).
+4. Push to `main`. GitHub Actions builds the APK, signs it with your key and publishes it as release `v1.5`, marked as the latest.
+
+A push that doesn't change `versionName` still builds the APK (download it from the run's **Artifacts**), but doesn't publish a release. Debug builds are never published.
+
 ## Project layout
 
 ```
@@ -123,3 +134,7 @@ The only dependency is Google's `apksig`.
 ## A word to users
 
 Back up the `.jks` file and write down the keystore password, key password and alias. If any of them is lost, apps signed with that key can't be updated with the same signature.
+
+## License
+
+NestSigner is licensed under the [Apache License 2.0](LICENSE).
